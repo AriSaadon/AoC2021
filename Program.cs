@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,16 +11,472 @@ namespace Advent_2021
 {
     class Program
     {
-        public static List<string> input = File.ReadAllLines("input20.txt").ToList();
+        public static List<string> input = File.ReadAllLines("input25.txt").ToList();
 
-        static void Main() => Advent20();
+        static void Main() => Advent25();
+        
+        /// <summary>
+        /// It's a shame I could not finish on 25 dec because of other stuff.
+        /// But at least I am glad that I finished before new year.
+        /// Final challenge was suprisingly easy.
+        /// </summary>
+        static void Advent25()
+        {
+            int height = input.Count, width = input[0].Length; 
+            List<int> grid = new List<int>();
+            List<(int, int)> changes = new List<(int, int)>();
+
+            input.ForEach(l => Array.ForEach(l.ToCharArray(), x => grid.Add(x == '.' ? 0 : (x == '>' ? 1 : 2))));
+
+            int step = 0;
+            bool changed = true;
+            while (changed)
+            {
+                step++;
+                changed = false;
+                foreach (int z in new int[] { 1, 2 })
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        for (int x = 0; x < width; x++)
+                        {
+                            int index = y * width + x;
+                            if (grid[index] == z)
+                            {
+                                int adj = z == 1 ? y * width + ((x + 1) % width) : ((y + 1) % height) * width + x;
+                                if (grid[adj] == 0)
+                                {
+                                    changes.Add((index, adj));
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+
+                    changes.ForEach(x =>
+                    {
+                        grid[x.Item1] = 0;
+                        grid[x.Item2] = z;
+                    });
+                    changes.Clear();
+                }
+            }
+            Console.WriteLine(step);
+        }
 
         /// <summary>
-        /// 
+        /// Just like the last one, I found this one not very straightforward.
+        /// I don't think my solution is a particularly good one.
+        /// Feel lucky that it works as opposed to content that I found it.
+        /// it seems that even value type variables are referenced in an anon function as long as 
+        /// they are not removed from the execution stack. After which they are commited to the last value they had.
+        /// </summary>
+        static void Advent24()
+        {
+            List<List<Action>> monad = new List<List<Action>>();
+            int[] ints = Array.Empty<int>();
+
+            for (int i = 0; i < input.Count; i++)
+            {
+                int set = i / 18;
+                if (i % 18 == 0) monad.Add(new List<Action>());
+
+                string[] ts = input[i].Split(' ');
+                int var1 = Array.IndexOf(new char[] { 'w', 'x', 'y', 'z' }, ts[1][0]);
+
+                if (ts[0] == "inp") continue;
+                else if (char.IsNumber(ts[2][0]) || ts[2][0] == '-') //if number as second arg
+                {
+                    int val = int.Parse(ts[2]);
+                    if (ts[0] == "add") monad[set].Add(() => ints[var1] += val);
+                    if (ts[0] == "mul") monad[set].Add(() => ints[var1] *= val);
+                    if (ts[0] == "div") monad[set].Add(() => ints[var1] /= val);
+                    if (ts[0] == "mod") monad[set].Add(() => ints[var1] %= val);
+                    if (ts[0] == "eql") monad[set].Add(() => ints[var1] = ints[var1] == val ? 1 : 0);
+                }
+                else //if var as second arg
+                {
+                    int var2 = Array.IndexOf(new char[] { 'w', 'x', 'y', 'z' }, ts[2][0]);
+                    if (ts[0] == "add") monad[set].Add(() => ints[var1] += ints[var2]);
+                    if (ts[0] == "mul") monad[set].Add(() => ints[var1] *= ints[var2]);
+                    if (ts[0] == "div") monad[set].Add(() => ints[var1] /= ints[var2]);
+                    if (ts[0] == "mod") monad[set].Add(() => ints[var1] %= ints[var2]);
+                    if (ts[0] == "eql") monad[set].Add(() => ints[var1] = ints[var1] == ints[var2] ? 1 : 0);
+                }
+            }
+
+            Dictionary<int, string> oldValids = new Dictionary<int, string>();
+            Dictionary<int, string> newValids = new Dictionary<int, string>();
+            oldValids.Add(0, "");
+
+            for (int set = 13; set >= 0; set--)
+            {
+                for (int digit = 1; digit <= 9; digit++) //switch around from 9 to 1 for part1.
+                {
+                    for (int z = 0; z < 10000000; z++)
+                    {
+                        ints = new int[] { digit, 0, 0, z };
+                        monad[set].ForEach(x => x.Invoke());
+
+                        if (oldValids.ContainsKey(ints[3]))
+                            if (!newValids.ContainsKey(z))
+                                newValids.Add(z, digit.ToString() + oldValids[ints[3]]);
+                    }
+                }
+
+                oldValids = newValids;
+                if (set == 0) Console.WriteLine(string.Join(' ', oldValids));
+                newValids = new Dictionary<int, string>();
+            }
+        }
+        
+        /// <summary>
+        /// Part one was suprisingly difficult on my laptop as opposed to desktop
+        /// Was it the smaller screen, the other mouse and keyboard
+        /// or the fact that I was working at an unusual location?
+        /// Took a large break between part 1 and part 2, because of family visit
+        /// Made part2 on the 28th of december
+        /// Did not think it would go that easy, 
+        /// but with little effort part 2 ran the same way as part 1
+        /// </summary>
+        static void Advent23()
+        {
+            const int width = 5, height = 11, size = 55;
+            List<char> amphi = new List<char> { 'a', 'b', 'c', 'd' };
+            List<char> AMPHI = new List<char> { 'A', 'B', 'C', 'D' };
+
+            List<char> startBurrow = new List<char>
+            { 
+                'e','w','w','w','w',//0
+                'e','w','w','w','w',//5
+                't','b','a','c','c',
+                'e','w','w','w','w',//15
+                't','b','b','a','a',
+                'e','w','w','w','w',//25
+                't','c','c','b','d',
+                'e','w','w','w','w',//35
+                't','a','d','d','d', 
+                'e','w','w','w','w',//45
+                'e','w','w','w','w' //50
+            };
+
+            Func<int, char> getRoom = (int i) =>
+            {
+                if (i == 11 || i == 12 || i == 13 || i == 14) return '3';
+                if (i == 21 || i == 22 || i == 23 || i == 24) return '2';
+                if (i == 31 || i == 32 || i == 33 || i == 34) return '1';
+                if (i == 41 || i == 42 || i == 43 || i == 44) return '0';
+                return '0';
+            };
+
+            Func<List<char>, int, int, bool> isAccessible = (List<char> cs, int from, int to) =>
+            {
+                bool accessible = true;
+                for (int i = from; i < to; i++)
+                {
+                    if (cs[i] == 'w' && accessible) accessible = false;
+                    else if (cs[i] != 'w' && !accessible) return false;
+                }
+                return true;
+            };
+
+            Func<List<char>, bool> validState = (List<char> cs) =>
+            {
+                if (!isAccessible(cs, 11, 15)) return false;
+                if (!isAccessible(cs, 21, 25)) return false;
+                if (!isAccessible(cs, 31, 35)) return false;
+                if (!isAccessible(cs, 41, 45)) return false;
+
+                if (cs[0] == 'D' || cs[5] == 'D' || cs[45] == 'D' || cs[50] == 'D') return false;
+                if (cs[0] == 'C' || cs[5] == 'C' || cs[45] == 'C' || cs[50] == 'C' || cs[35] == 'C') return false;
+
+                return true;
+            };
+
+            Func<int, List<char>, List<(int, int)>> TraverseGrid = (int i, List<char> grid) =>
+            {
+                List<char> nonTraversables = new List<char> { 'A', 'B', 'C', 'D', 'a', 'b', 'c', 'd', 'w' };
+                
+                List<(int,int)> destinations = new List<(int, int)>();
+                Queue<(int,int)> qu = new Queue<(int, int)> { };
+                bool[] traversed = Enumerable.Range(0, size).Select(x => x == i ? true : false).ToArray();
+                
+                qu.Enqueue((i, 0));
+
+                while (qu.Count != 0)
+                {
+                    (int, int) indexCost = qu.Dequeue();
+                    int[] neighbours = Util.GetManhattanNeighbours(indexCost.Item1, width, height);
+
+                    foreach (int n in neighbours.Where(x => x >= 0))
+                    {
+                        if (nonTraversables.Contains(grid[n])) continue;
+                        if (!traversed[n])
+                        {
+                            traversed[n] = true;
+                            qu.Enqueue((n, indexCost.Item2 + 1));
+                            destinations.Add((n, indexCost.Item2 + 1));
+                        }
+                    }
+                }
+
+                return destinations;
+            };
+
+            Stack<(int, List<char>)> borrows = new Stack<(int, List<char>)>();
+            borrows.Push((0, startBurrow));
+
+            int min = int.MaxValue;
+            List<char> bestState = new List<char>();
+
+            while (borrows.Count != 0)
+            {
+                (int, List<char>) costState = borrows.Pop();
+                if (costState.Item1 >= min) continue;
+
+                for (int i = 0; i < size; i++) //for costState state iterate all rooms
+                {
+                    char c = costState.Item2[i];
+
+                    if (amphi.Contains(c)) //if room contains an amphi
+                    {
+                        List<(int, int)> destinations = TraverseGrid(i, costState.Item2);
+                        char[] valid = new char[] { 'e', amphi.IndexOf(c).ToString()[0] };
+
+                        foreach ((int,int) indexCost in destinations.FindAll(x => valid.Contains(costState.Item2[x.Item1])))
+                        {
+                            List<char> newState = new List<char>(costState.Item2);
+                            newState[i] = getRoom(i);
+                            newState[indexCost.Item1] = newState[indexCost.Item1] == 'e' ? char.ToUpper(c) : 'w';
+
+                            int newCost = costState.Item1 + indexCost.Item2 * (int)Math.Pow(10, amphi.IndexOf(c));
+
+                            if (validState(newState)) borrows.Push((newCost, newState));
+                        }
+                    }
+                    else if (AMPHI.Contains(c)) //if room contains an AMPHI
+                    {
+                        List<(int, int)> destinations = TraverseGrid(i, costState.Item2);
+                        char[] valid = new char[] { AMPHI.IndexOf(c).ToString()[0] };
+
+                        foreach ((int,int) indexCost in destinations.FindAll(x => valid.Contains(costState.Item2[x.Item1])))
+                        {
+                            List<char> newState = new List<char>(costState.Item2);
+                            newState[i] = 'e';
+                            newState[indexCost.Item1] = 'w';
+
+                            int newCost = costState.Item1 + indexCost.Item2 * (int)Math.Pow(10, AMPHI.IndexOf(c));
+                            
+                            if (validState(newState)) borrows.Push((newCost, newState)); 
+                        }
+                    }
+                }
+
+                if (costState.Item2.Count(x => x == 'w') >= 44 && costState.Item1 < min)
+                {
+                    min = costState.Item1;
+                    bestState = costState.Item2;
+                }
+            }
+
+            Console.WriteLine(min);
+        }
+
+
+        /// <summary>
+        /// Did first part in the morning with a bit array
+        /// Did not have time to do the second part right away
+        /// Ended up thinking about the problem half a day while doing other things
+        /// Eventually settled on a good solution that I like
+        /// implementation was easy except for AABB intersection, which I initially forgot how to do easily
+        /// Hardest problem yet I would say in terms of puzzle aspect.
+        /// </summary>
+        static void Advent22()
+        {
+            List<AABB22> boxes = new List<AABB22>();
+            for (int i = 0; i < input.Count; i++)
+            {
+                long[] ns = Regex.Matches(input[i], @"-?\d+").Select(y => long.Parse(y.Value)).ToArray();
+                AABB22 current = new AABB22(input[i][1] == 'n' ? 1 : -1, ns);
+                
+                int count = boxes.Count;
+                for (int j = 0; j < count; j++)
+                    if (boxes[j].Intersect(current) != null) boxes.Add(boxes[j].Intersect(current));
+
+                if (current.polarity == 1) boxes.Add(current);
+            }
+            Console.WriteLine(boxes.Sum(x => x.GetVolume));
+        }
+
+        class AABB22
+        {
+            public long polarity;
+            public long x1, x2, y1, y2, z1, z2;
+
+            public AABB22(long p, long[] ns)
+            {
+                this.polarity = p;
+                x1 = ns[0]; x2 = ns[1]; y1 = ns[2]; y2 = ns[3]; z1 = ns[4]; z2 = ns[5];
+            }
+
+            public AABB22 Intersect(AABB22 other)
+            {
+                long minX = Math.Max(x1, other.x1);
+                long maxX = Math.Min(x2, other.x2);
+                long minY = Math.Max(y1, other.y1);
+                long maxY = Math.Min(y2, other.y2);
+                long minZ = Math.Max(z1, other.z1);
+                long maxZ = Math.Min(z2, other.z2);
+
+                long p = (polarity == -1) ? 1 : -1;
+
+                if (minX <= maxX && minY <= maxY && minZ <= maxZ)
+                    return new AABB22(p, new long[] { minX, maxX, minY, maxY, minZ, maxZ });
+                else
+                    return null; // no intersection
+            }
+
+            public long GetVolume => polarity * (x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1);
+        }
+
+
+        /// <summary>
+        /// This was a fun challenge
+        /// Took way more time than I initially thought.
+        /// Dictionaries working faster with strings as keys as oposed to structs is silly in c#.
+        /// And also shorts and bytes with the plus operator is stupid.
+        /// </summary>
+        static void Advent21()
+        {
+            GameState21 detGame = new GameState21(8, 0, true, 3, 0);
+            int detDice = 1, diceRoles = 0;
+            
+            while (detGame.scoreOne < 1000 && detGame.scoreTwo < 1000)
+            {
+                int additional = (detDice + 1) * 3;
+                detDice += 3; diceRoles += 3;
+                detGame = detGame.Rol(additional);
+            }
+            
+            Console.WriteLine(diceRoles * (!detGame.turn ? detGame.scoreTwo : detGame.scoreOne));
+
+            Dictionary<string, long> oldIterationStates = new Dictionary<string, long>();
+            Dictionary<string, long> newIterationStates;
+            long uniOne = 0, uniTwo = 0;
+
+            for (int p1 = 1; p1 < 11; p1++)
+                for (int p2 = 1; p2 < 11; p2++)
+                    for (int s1 = 0; s1 < 21; s1++)
+                        for (int s2 = 0; s2 < 21; s2++)
+                            for (int t = 0; t < 2; t++)
+                                oldIterationStates.Add(new GameState21(p1, s1, t == 0 ? true : false, p2, s2).ToString(), 0);
+
+            newIterationStates = new Dictionary<string, long>(oldIterationStates);
+            oldIterationStates[new GameState21(8, 0, true, 3, 0).ToString()] = 1;
+
+            while (oldIterationStates.Values.Sum() > 0)
+            {
+                foreach (string state in oldIterationStates.Keys) newIterationStates[state] = 0;
+
+                foreach (KeyValuePair<string, long> stateCount in oldIterationStates)
+                    for (int i = 1; i < 4 && stateCount.Value > 0; i++)
+                        for (int j = 1; j < 4 && stateCount.Value > 0; j++)
+                            for (int k = 1; k < 4 && stateCount.Value > 0; k++)
+                            {
+                                GameState21 nextState = new GameState21(stateCount.Key).Rol(i+j+k);
+
+                                if (newIterationStates.ContainsKey(nextState.ToString()))
+                                {
+                                    newIterationStates[nextState.ToString()] += stateCount.Value;
+                                }
+                                else
+                                {
+                                    if (nextState.turn) uniTwo += stateCount.Value;
+                                    else uniOne += stateCount.Value;
+                                }
+                            }
+
+                oldIterationStates = new Dictionary<string, long>(newIterationStates);
+            }
+
+            Console.WriteLine(Math.Max(uniOne, uniTwo));
+        }
+
+        public struct GameState21
+        {
+            public int posOne, posTwo;
+            public int scoreOne, scoreTwo;
+            public bool turn;
+            public GameState21(int p1, int s1, bool t, int p2, int s2)
+            {
+                posOne = p1; posTwo = p2;
+                scoreOne = s1; scoreTwo = s2;
+                turn = t;
+            }
+            
+            public GameState21(string x)
+            {
+                string[] s = x.Split(' ');
+                posOne = int.Parse(s[0]); posTwo = int.Parse(s[3]);
+                scoreOne = int.Parse(s[1]); scoreTwo = int.Parse(s[4]);
+                turn = bool.Parse(s[2]);
+            }
+
+            public GameState21 Rol(int additional)
+            {
+                if (turn)
+                {
+                    int newPosOne = (posOne + additional) % 10 == 0 ? 10 : (posOne + additional) % 10;
+                    int newScoreOne = scoreOne + newPosOne;
+                    return new GameState21(newPosOne, newScoreOne, !turn, posTwo, scoreTwo);
+                }
+                else
+                {
+                    int newPosTwo = (posTwo + additional) % 10 == 0 ? 10 : (posTwo + additional) % 10;
+                    int newScoreTwo = scoreTwo + newPosTwo;
+                    return new GameState21(posOne, scoreOne, !turn, newPosTwo, newScoreTwo);
+                }
+            }
+
+            public override string ToString() => $"{posOne} {scoreOne} {turn} {posTwo} {scoreTwo}";
+        }
+
+        /// <summary>
+        /// Easy day, except for debugging mean line 40
         /// </summary>
         static void Advent20()
         {
+            int width = input[2].Length; int height = input.Count - 2;
+            int amount = 50; int pad = amount + 10;
 
+            List<char> algorithm = input[0].Select(x => x == '.' ? '0' : '1').ToList();
+            List<char> grid = new List<char>();
+
+            for (int i = 0; i < height + 2*pad; i++)
+            {
+                for (int j = 0; j < width + 2*pad; j++)
+                {
+                    if (i < pad || i >= height + pad || j < pad || j >= width + pad) grid.Add('0');
+                    else grid.Add(input[2 + i - pad][j - pad] == '.' ? '0' : '1');
+                }
+            }
+
+            List<char> newGrid = new List<char>(grid);
+            for (int i = 0; i < amount; i++)
+            {
+                char inf = i % 2 == 0 ? '0' : '1';
+                for (int k = 0; k < grid.Count; k++)
+                {
+                    List<int> neigh = Util.GetNeighbours20(k, width + 2 * pad, height + 2 * pad);
+                    string bit = string.Empty;
+                    
+                    for (int l = 0; l < 9; l++) bit += (neigh[l] == -1 ? inf : grid[neigh[l]]);
+             
+                    newGrid[k] = algorithm[(int)Util.BSToInT(bit)];
+                }
+                grid = new List<char>(newGrid);
+            }
+            Console.WriteLine(grid.Count(x => x == '1'));
         }
 
         /// <summary>
@@ -948,6 +1405,73 @@ namespace Advent_2021
             return x;
         }
 
+        public static List<int> GetNeighbours20(int x, int w, int h)
+        {
+            List<int> neighbours;
+
+            //corners
+            if (x == 0) neighbours = new List<int> 
+            { 
+                -1, -1, -1, 
+                -1, x, x + 1, 
+                -1, x + w, x + w + 1 
+            };
+            else if (x == w - 1) neighbours = new List<int> 
+            { 
+                -1, -1, -1, 
+                x - 1, x, -1, 
+                x + w - 1, x + w, -1 
+            };
+            else if (x == w * (h - 1)) neighbours = new List<int> 
+            { 
+                -1, x - w, x - w + 1, 
+                -1, x, x + 1, 
+                -1, -1, -1 
+            };
+            else if (x == (w * h) - 1) neighbours = new List<int> 
+            { 
+                x - w - 1, x - w, -1, 
+                x - 1, x, -1, 
+                -1, -1, -1 
+            };
+
+            // edges
+            else if (x % w == 0) neighbours = new List<int> 
+            { 
+                -1, x - w, x - w + 1, 
+                -1, x, x + 1, 
+                -1, x + w, x + w + 1 
+            };
+            else if (x % w == w - 1) neighbours = new List<int> 
+            { 
+                x - w - 1, x - w, -1,  
+                x - 1, x, -1, 
+                x + w - 1, x + w, -1 
+            };
+            else if (x < w) neighbours = new List<int> 
+            { 
+                -1, -1, -1, 
+                x - 1, x, x + 1, 
+                x + w - 1, x + w, x + w + 1 
+            };
+            else if (x >= w * (h - 1)) neighbours = new List<int> 
+            { 
+                x - w - 1, x - w, x - w + 1, 
+                x - 1, x, x + 1, 
+                -1, -1, -1 
+            };
+
+            // bulk
+            else neighbours = new List<int> 
+            { 
+                x - w - 1, x - w, x - w + 1, 
+                x - 1, x, x + 1, 
+                x + w - 1, x + w, x + w + 1 
+            };
+
+            return neighbours;
+        }
+
         public static List<int> GetNeighbours(int x, int w, int h)
         {
             List<int> neighbours;
@@ -977,17 +1501,30 @@ namespace Advent_2021
             bool up = x < w;
             bool down = x >= w * (h - 1);
 
-            if (!left && !right && !up && !down) return new int[] { x + w, x - 1, x - w, x + 1 };
+            if (!left && !right && !up && !down) return new int[] { x - w, x + 1, x + w, x - 1 };
 
-            else if (!down && !right && !left) return new int[] { x + w, x - 1, x + 1 };
-            else if (!up && !right && !left) return new int[] { x - w, x - 1, x + 1 };
-            else if (!up && !down && !left) return new int[] { x - w, x + w, x - 1 };
-            else if (!up && !down && !right) return new int[] { x - w, x + w, x + 1 };
+            else if (!down && !right && !left) return new int[] { -1, x + 1, x + w, x - 1  };
+            else if (!up && !right && !left) return new int[] { x - w, x + 1, -1, x - 1 };
+            else if (!up && !down && !left) return new int[] { x - w, -1, x + w, x - 1 };
+            else if (!up && !down && !right) return new int[] { x - w, x + 1, x + w, -1 };
 
-            else if (x == 0) return new int[] { x + w, x + 1 };
-            else if (x == w-1) return new int[] { x + w, x - 1 };
-            else if (x == w * (h-1)) return new int[] { x - w, x + 1 };
-            else return new int[] { x - w, x - 1 };
+            else if (x == 0) return new int[] { -1, x + 1, x + w, -1 };
+            else if (x == w-1) return new int[] { -1, -1, x + w, x - 1 };
+            else if (x == w * (h-1)) return new int[] { x - w, x + 1, -1, -1 };
+            else return new int[] { x - w, -1, -1, x - 1 };
+        }
+
+        public static void OutputGrid<T>(this List<T> source, int width, int height)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Console.WriteLine("");
+                for (int x = 0; x < width; x++)
+                {
+                    Console.Write(source[y * width + x] + " ");
+                }
+            }
+            Console.WriteLine("");
         }
 
         public static void GetPermutations<TSource>(this List<TSource> source, List<TSource> acc, List<List<TSource>> output)
